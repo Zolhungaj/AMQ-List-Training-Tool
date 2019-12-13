@@ -6,6 +6,7 @@ selenium
 Firefox
 geckodriver
 """
+import os
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
@@ -87,7 +88,8 @@ def main():
         password = data[1][:-1]
         anilist = data[2][:-1]
         kitsu = data[3][:-1]
-        ffmpeg = data[3][:-1]
+        global ffmpeg
+        ffmpeg = data[4][:-1]
     driver = webdriver.Firefox(executable_path='geckodriver/geckodriver.exe')
     driver.get('https://animemusicquiz.com')
     driver.find_element_by_id("loginUsername").send_keys(username)
@@ -103,10 +105,10 @@ def main():
         name = question["name"]
         songs = question["songs"]
         for song in songs:
-            save(driver, conn, annId, name, song)
+            save(driver, annId, name, song)
 
 
-def save(driver, conn, annId, anime, song):
+def save(driver, annId, anime, song):
     source_mp3 = song["examples"].get("mp3", None)
     if(not source_mp3):
         return
@@ -115,16 +117,17 @@ def save(driver, conn, annId, anime, song):
     type = ["Unknown", "Opening", "Ending", "Insert"][song["type"]]
     number = song["number"]
     command = ffmpeg + " "
-    command += "-i " + source_mp3 + " "
+    command += "-y -i " + source_mp3 + " "
     command += "-vn -c:a copy" + " "
-    command += "-map metadata 0" + " "
+    command += "-map_metadata -1" + " "
     command += '-metadata title="%s" ' % title
     command += '-metadata artist="%s" ' % artist
     command += '-metadata track="%d" ' % number
     command += '-metadata disc="%d" ' % song["type"]
     command += '-metadata genre="%s" ' % type
     command += '-metadata album="%s" ' % anime
-    command += '"' + anime + "_" + type + number + "_" + title + "_" + artist + '.mp3"'
+    command += '"out/' + anime + "-" + type + str(number) + "-" + title + "-" + artist + "_" + str(annId) + "-" + str(song["annSongId"]) + '.mp3"'
+    os.system("start /wait /MIN cmd /c %s" % command)
 
 if __name__ == "__main__":
     main()
