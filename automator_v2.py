@@ -12,6 +12,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
 import time
 import json
+from pathlib import Path
 
 def update_anime_lists(driver, anilist="", kitsu=""):
     driver.execute_script('document.getElementById("mpNewsContainer").innerHTML = "Updating AniList...";')
@@ -90,7 +91,11 @@ def main():
         kitsu = data[3][:-1]
         global ffmpeg
         ffmpeg = data[4][:-1]
-    driver = webdriver.Firefox(executable_path='geckodriver/geckodriver.exe')
+        outpath = data[5][:-1]
+    path = str(Path(__file__).parent.absolute())
+    if not outpath:
+        outpath = path+"/out/"
+    driver = webdriver.Firefox(executable_path=path+'/geckodriver/geckodriver')
     driver.get('https://animemusicquiz.com')
     driver.find_element_by_id("loginUsername").send_keys(username)
     driver.find_element_by_id("loginPassword").send_keys(password)
@@ -105,17 +110,18 @@ def main():
         name = question["name"]
         songs = question["songs"]
         for song in songs:
-            save(driver, annId, name, song)
+            save(annId, name, song, outpath)
 
 
-def save(driver, annId, anime, song):
+def save(annId, anime, song, outpath):
     source_mp3 = song["examples"].get("mp3", None)
-    if(not source_mp3):
+    if not source_mp3:
         return
     title = song["name"]
     artist = song["artist"]
     type = ["Unknown", "Opening", "Ending", "Insert"][song["type"]]
     number = song["number"]
+    annSongId = song["annSongId"]
     command = ffmpeg + " "
     command += "-y -i " + source_mp3 + " "
     command += "-vn -c:a copy" + " "
@@ -126,8 +132,36 @@ def save(driver, annId, anime, song):
     command += '-metadata disc="%d" ' % song["type"]
     command += '-metadata genre="%s" ' % type
     command += '-metadata album="%s" ' % anime
-    command += '"out/' + anime + "-" + type + str(number) + "-" + title + "-" + artist + "_" + str(annId) + "-" + str(song["annSongId"]) + '.mp3"'
+    command += '"out/' + anime + "-" + type + str(number) + "-" + title + "-" + artist + "_" + str(annId) + "-" + str(annSongId) + '.mp3"'
     os.system("start /wait /MIN cmd /c %s" % command)
+
+
+def createFileNameWindows(animeTitle, songType, songNumber, songTitle, songArtist, annId, annSongId, path, allowance=256):
+    """
+    Creates a windows-compliant filename by capitalizing each "word"
+    from the anime title, song type, song title and song artist and
+    then removing all bad characters
+    """
+    allowance -= path
+    titlelist = animeTitle.split()
+    title = ""
+    for w in titlelist:
+        title = title + w.capitalize()
+    title += "-"
+    titlelist = songType.split()
+    for w in titlelist:
+        title = title + w.capitalize()
+    title += "-"
+    titlelist = songTitle.split()
+    for w in titlelist:
+        title = title + w.capitalize()
+    title += "-"
+    titlelist = songArtist.split()
+    for w in titlelist:
+        title = title + w.capitalize()
+    title = re.sub(r"\\|\/|\<|\>|\:|\"|\||\?|\*|&|\^|\$|\:|", '', title)
+    return title
+
 
 if __name__ == "__main__":
     main()
