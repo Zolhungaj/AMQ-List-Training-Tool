@@ -108,15 +108,24 @@ def main():
         for song in songs:
             save(driver, annId, name, song)
 
-
-def save(driver, annId, anime, song):
+def save(driver, annId, anime, song, overwrite=False):
     source_mp3 = song["examples"].get("mp3", None)
     if(not source_mp3):
         return
+
     title = song["name"]
     artist = song["artist"]
     song_type = ["Unknown", "Opening", "Ending", "Insert"][song["type"]]
     number = "" if song_type == "Insert" else str(song["number"])
+
+    filename = u"out/" + u"{}-{}{}-{}-{}_{}-{}.mp3".format(
+                anime, song_type, number, title, artist, annId, song["annSongId"]).replace("/", "_")
+
+    if not overwrite:
+        if os.path.isfile(filename):
+            print u"{} already exists; skipping".format(filename)
+            return
+
     command = ["ffmpeg", "-y", "-i", source_mp3, "-vn", "-c:a", "copy",
             "-map_metadata", "-1",
             "-metadata", u"title={}".format(title),
@@ -125,8 +134,7 @@ def save(driver, annId, anime, song):
             "-metadata", u"disc={}".format(song["type"]),
             "-metadata", u"genre={}".format(song_type),
             "-metadata", u"album={}".format(anime),
-            u"out/{}-{}{}-{}-{}_{}-{}.mp3".format(
-                anime, song_type, number, title, artist, annId, song["annSongId"])]
+            filename]
     subprocess.call(command)
 
 if __name__ == "__main__":
