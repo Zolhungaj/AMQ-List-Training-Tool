@@ -135,34 +135,46 @@ def save(annId, anime, song, outpath):
     command += '"out/' + anime + "-" + type + str(number) + "-" + title + "-" + artist + "_" + str(annId) + "-" + str(annSongId) + '.mp3"'
     execute_command(command)
 
+
 def execute_command(command):
     os.system("start /wait /MIN cmd /c %s" % command)
 
-def createFileNameWindows(animeTitle, songType, songNumber, songTitle, songArtist, annId, annSongId, path, allowance=255):
+
+def create_file_name_Windows(animeTitle, songType, songNumber, songTitle, songArtist, annId, annSongId, path, allowance=255):
     """
     Creates a windows-compliant filename by removing all bad characters 
     and maintaining the windows path length limit (which by default is 255)
     """
-    
-    #assign allowance for things that must be in the file name
-    allowance -= len(path)
+    allowance -= len(path) # by default, windows is sensitive to long total paths.
+    bad_characters = re.compile(r"\\|/|<|>|:|\"|\||\?|\*|&|\^|\$|" + '\0')
+    return create_file_name(animeTitle, songType, songNumber, songTitle, songArtist, annId, annSongId, path, bad_characters, allowance)
+
+
+def create_file_name_POSIX(animeTitle, songType, songNumber, songTitle, songArtist, annId, annSongId, path, allowance=32767):
+    """
+    Creates a POSIX-compliant filename by removing all bad characters 
+    and maintaining the NTFS path length limit
+    """
+    bad_characters = re.compile(r"/" + '\0')
+    return create_file_name(animeTitle, songType, songNumber, songTitle, songArtist, annId, annSongId, path, bad_characters, allowance)
+
+
+def create_file_name(animeTitle, songType, songNumber, songTitle, songArtist, annId, annSongId, path, bad_characters, allowance=255)
     if allowance > 255: 
-        allowance = 255 #on most common filesystems, including NTFS a filename can not exceed 255 characters
+        allowance = 255 # on most common filesystems, including NTFS a filename can not exceed 255 characters
+    # assign allowance for things that must be in the file name
     allowance -= len(str(annId))
     allowance -= len(str(annSongId))
-    allowance -= len("_-.mp3") # accounting for separators (- _) for annId annSongId, and .mp3
+    allowance -= len("_-.mp3") # accounting for separators (-_) for annId annSongId, and .mp3
     if allowance < 0:
-        raise ValueError("""It is not possible to give a reasonable file name, due to the length of the output path.
+        raise ValueError("""It is not possible to give a reasonable file name, due to length limitations.
         Consider changing location to somewhere with a shorter path.""")
-    
-
-    #make sure that user input doesn't contain bad characters
+    # make sure that user input doesn't contain bad characters
     animeTitle = bad_characters.sub("", animeTitle)
     songType = bad_characters.sub('', songType)
     songTitle = bad_characters.sub('', songTitle)
     songArtist = bad_characters.sub('', songArtist)
 
-    bad_characters = re.compile(r"\\|/|<|>|:|\"|\||\?|\*|&|\^|\$|" + '\0')
     song_number_string = ""
     if songNumber:
         song_number_string = "_" + str(songNumber)
