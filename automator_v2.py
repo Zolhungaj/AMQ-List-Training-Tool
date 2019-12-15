@@ -14,6 +14,12 @@ import time
 import json
 from pathlib import Path
 
+if os.name == "nt":
+    create_file_name = create_file_name_Windows
+elif os.name == "posix":
+    create_file_name = create_file_name_POSIX
+
+
 def update_anime_lists(driver, anilist="", kitsu=""):
     driver.execute_script('document.getElementById("mpNewsContainer").innerHTML = "Updating AniList...";')
     status = driver.find_element_by_id("mpNewsContainer")
@@ -76,7 +82,7 @@ socket.sendCommand({
     driver.execute_script('document.getElementById("mpNewsContainer").innerHTML = "";')
     return ret
 
-ffmpeg = "ffmpeg"  # command to invoke ffmpeg, eg C:ffmpeg\bin\ffmpeg.exe
+ffmpeg = "ffmpeg"
 
 
 def main():
@@ -122,18 +128,22 @@ def save(annId, anime, song, outpath):
     type = ["Unknown", "Opening", "Ending", "Insert"][song["type"]]
     number = song["number"]
     annSongId = song["annSongId"]
-    command = ffmpeg + " "
-    command += "-y -i " + source_mp3 + " "
-    command += "-vn -c:a copy" + " "
-    command += "-map_metadata -1" + " "
-    command += '-metadata title="%s" ' % title
-    command += '-metadata artist="%s" ' % artist
-    command += '-metadata track="%d" ' % number
-    command += '-metadata disc="%d" ' % song["type"]
-    command += '-metadata genre="%s" ' % type
-    command += '-metadata album="%s" ' % anime
-    command += '"out/' + anime + "-" + type + str(number) + "-" + title + "-" + artist + "_" + str(annId) + "-" + str(annSongId) + '.mp3"'
-    execute_command(command)
+    command = [
+        ffmpeg, 
+        "-y", 
+        "-i", source_mp3,
+        "-vn", 
+        "-c:a copy",
+        "-map_metadata", "-1",
+        "-metadata", 'title="%s"' % title,
+        "-metadata", 'artist="%s"' % artist,
+        "-metadata", 'track="%d"' % number,
+        "-metadata", 'disc="%d"' % song["type"],
+        "-metadata", 'genre="%s"' % type,
+        "-metadata", 'album="%s"' % anime,
+        create_file_name(anime, type, number, title, artist, annId, annSongId, path)
+    ]
+    execute_command(command.join(" "))
 
 
 def execute_command(command):
@@ -147,7 +157,7 @@ def create_file_name_Windows(animeTitle, songType, songNumber, songTitle, songAr
     """
     allowance -= len(path) # by default, windows is sensitive to long total paths.
     bad_characters = re.compile(r"\\|/|<|>|:|\"|\||\?|\*|&|\^|\$|" + '\0')
-    return create_file_name(animeTitle, songType, songNumber, songTitle, songArtist, annId, annSongId, path, bad_characters, allowance)
+    return create_file_name_common(animeTitle, songType, songNumber, songTitle, songArtist, annId, annSongId, path, bad_characters, allowance)
 
 
 def create_file_name_POSIX(animeTitle, songType, songNumber, songTitle, songArtist, annId, annSongId, path, allowance=32767):
@@ -156,10 +166,10 @@ def create_file_name_POSIX(animeTitle, songType, songNumber, songTitle, songArti
     and maintaining the NTFS path length limit
     """
     bad_characters = re.compile(r"/" + '\0')
-    return create_file_name(animeTitle, songType, songNumber, songTitle, songArtist, annId, annSongId, path, bad_characters, allowance)
+    return create_file_name_common(animeTitle, songType, songNumber, songTitle, songArtist, annId, annSongId, path, bad_characters, allowance)
 
 
-def create_file_name(animeTitle, songType, songNumber, songTitle, songArtist, annId, annSongId, path, bad_characters, allowance=255)
+def create_file_name_common(animeTitle, songType, songNumber, songTitle, songArtist, annId, annSongId, path, bad_characters, allowance=255)
     if allowance > 255: 
         allowance = 255 # on most common filesystems, including NTFS a filename can not exceed 255 characters
     # assign allowance for things that must be in the file name
