@@ -133,34 +133,56 @@ def save(annId, anime, song, outpath):
     command += '-metadata genre="%s" ' % type
     command += '-metadata album="%s" ' % anime
     command += '"out/' + anime + "-" + type + str(number) + "-" + title + "-" + artist + "_" + str(annId) + "-" + str(annSongId) + '.mp3"'
+    execute_command(command)
+
+def execute_command(command):
     os.system("start /wait /MIN cmd /c %s" % command)
 
+def createFileNameWindows(animeTitle, songType, songNumber, songTitle, songArtist, annId, annSongId, path, allowance=255):
+    """
+    Creates a windows-compliant filename by removing all bad characters 
+    and maintaining the windows path length limit (which by default is 255)
+    """
+    
+    #assign allowance for things that must be in the file name
+    allowance -= len(path)
+    if allowance > 255: 
+        allowance = 255 #on most common filesystems, including NTFS a filename can not exceed 255 characters
+    allowance -= len(str(annId))
+    allowance -= len(str(annSongId))
+    allowance -= len("_-.mp3") # accounting for separators (- _) for annId annSongId, and .mp3
+    if allowance < 0:
+        raise ValueError("""It is not possible to give a reasonable file name, due to the length of the output path.
+        Consider changing location to somewhere with a shorter path.""")
+    
 
-def createFileNameWindows(animeTitle, songType, songNumber, songTitle, songArtist, annId, annSongId, path, allowance=256):
-    """
-    Creates a windows-compliant filename by capitalizing each "word"
-    from the anime title, song type, song title and song artist and
-    then removing all bad characters
-    """
-    allowance -= path
-    titlelist = animeTitle.split()
-    title = ""
-    for w in titlelist:
-        title = title + w.capitalize()
-    title += "-"
-    titlelist = songType.split()
-    for w in titlelist:
-        title = title + w.capitalize()
-    title += "-"
-    titlelist = songTitle.split()
-    for w in titlelist:
-        title = title + w.capitalize()
-    title += "-"
-    titlelist = songArtist.split()
-    for w in titlelist:
-        title = title + w.capitalize()
-    title = re.sub(r"\\|\/|\<|\>|\:|\"|\||\?|\*|&|\^|\$|\:|", '', title)
-    return title
+    #make sure that user input doesn't contain bad characters
+    animeTitle = bad_characters.sub("", animeTitle)
+    songType = bad_characters.sub('', songType)
+    songTitle = bad_characters.sub('', songTitle)
+    songArtist = bad_characters.sub('', songArtist)
+
+    bad_characters = re.compile(r"\\|/|<|>|:|\"|\||\?|\*|&|\^|\$|" + '\0')
+    song_number_string = ""
+    if songNumber:
+        song_number_string = "_" + str(songNumber)
+    ret = ""
+    for string in [animeTitle, songType + song_number_string, songTitle, songArtist]:
+        length = len(string)
+        if allowance - length < 0:
+            string = string[:allowance]
+            length = len(string)
+        ret += string
+        allowance -= length
+        if allowance - 1 > 1:
+            ret += "-"
+        else:
+            break
+    else:
+        ret = ret[:-1] # removes last "-"
+    ret = path + ret + "_" + str(annId) + "-" + str(annSongId) + ".mp3"
+
+    return ret
 
 
 if __name__ == "__main__":
