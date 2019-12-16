@@ -14,6 +14,7 @@ from selenium.webdriver.common.action_chains import ActionChains
 import time
 import json
 from pathlib import Path
+import subprocess
 
 
 def update_anime_lists(driver, anilist="", kitsu=""):
@@ -125,7 +126,7 @@ def save(annId, anime, song, outpath):
     number = song["number"]
     annSongId = song["annSongId"]
     command = [
-        ffmpeg, 
+        '"%s"' % ffmpeg, 
         "-y", 
         "-i", source_mp3,
         "-vn", 
@@ -142,8 +143,12 @@ def save(annId, anime, song, outpath):
     execute_command(" ".join(command))
 
 
-def execute_command(command):
+def execute_command_Windows(command):
     os.system("start /wait /MIN cmd /c %s" % command)
+
+
+def execute_command_POSIX(command):
+    subprocess.call(command)
 
 
 def create_file_name_Windows(animeTitle, songType, songNumber, songTitle, songArtist, annId, annSongId, path, allowance=255):
@@ -202,10 +207,13 @@ def create_file_name_common(animeTitle, songType, songNumber, songTitle, songArt
 
     return ret
 
+
 if os.name == "nt":
     create_file_name = create_file_name_Windows
+    execute_command = execute_command_Windows
 elif os.name == "posix":
     create_file_name = create_file_name_POSIX
+    execute_command = execute_command_POSIX
 
 
 if __name__ == "__main__":
