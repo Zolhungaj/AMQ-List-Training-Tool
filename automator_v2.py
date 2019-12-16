@@ -15,6 +15,35 @@ import time
 import json
 from pathlib import Path
 import subprocess
+import sqlite3
+
+
+class Database:
+
+    def __init__(self, database_file):
+        self.database_file = database_file
+        conn = self.conn = sqlite3.connect(database_file)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS downloaded(
+                source TEXT,
+                annSongId INTEGER
+            );""")
+        conn.commit()
+    
+    def is_downloaded(self, song, source):
+        c = self.conn.cursor()
+        c.execute("""
+        SELECT url
+        FROM downloaded
+        WHERE source=(?) AND annSongId = (?)
+        """, (source, song["annSongId"],))
+        return c.fetchone() is not None
+    
+    def add_downloaded(self, song, source):
+        self.conn.execute("""
+        INSERT INTO downloaded VALUES(?,?)
+        """, (source, song["annSongId"]))
+        self.conn.commit()
 
 
 def update_anime_lists(driver, anilist="", kitsu=""):
