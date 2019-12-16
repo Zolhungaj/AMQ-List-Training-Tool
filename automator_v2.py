@@ -7,17 +7,13 @@ Firefox
 geckodriver
 """
 import os
+import re
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
 import time
 import json
 from pathlib import Path
-
-if os.name == "nt":
-    create_file_name = create_file_name_Windows
-elif os.name == "posix":
-    create_file_name = create_file_name_POSIX
 
 
 def update_anime_lists(driver, anilist="", kitsu=""):
@@ -133,7 +129,7 @@ def save(annId, anime, song, outpath):
         "-y", 
         "-i", source_mp3,
         "-vn", 
-        "-c:a copy",
+        "-c:a", "copy",
         "-map_metadata", "-1",
         "-metadata", 'title="%s"' % title,
         "-metadata", 'artist="%s"' % artist,
@@ -141,9 +137,9 @@ def save(annId, anime, song, outpath):
         "-metadata", 'disc="%d"' % song["type"],
         "-metadata", 'genre="%s"' % type,
         "-metadata", 'album="%s"' % anime,
-        create_file_name(anime, type, number, title, artist, annId, annSongId, path)
+        '"%s"' % create_file_name(anime, type, number, title, artist, annId, annSongId, outpath)
     ]
-    execute_command(command.join(" "))
+    execute_command(" ".join(command))
 
 
 def execute_command(command):
@@ -169,7 +165,7 @@ def create_file_name_POSIX(animeTitle, songType, songNumber, songTitle, songArti
     return create_file_name_common(animeTitle, songType, songNumber, songTitle, songArtist, annId, annSongId, path, bad_characters, allowance)
 
 
-def create_file_name_common(animeTitle, songType, songNumber, songTitle, songArtist, annId, annSongId, path, bad_characters, allowance=255)
+def create_file_name_common(animeTitle, songType, songNumber, songTitle, songArtist, annId, annSongId, path, bad_characters, allowance=255):
     if allowance > 255: 
         allowance = 255 # on most common filesystems, including NTFS a filename can not exceed 255 characters
     # assign allowance for things that must be in the file name
@@ -205,6 +201,11 @@ def create_file_name_common(animeTitle, songType, songNumber, songTitle, songArt
     ret = path + ret + "_" + str(annId) + "-" + str(annSongId) + ".mp3"
 
     return ret
+
+if os.name == "nt":
+    create_file_name = create_file_name_Windows
+elif os.name == "posix":
+    create_file_name = create_file_name_POSIX
 
 
 if __name__ == "__main__":
