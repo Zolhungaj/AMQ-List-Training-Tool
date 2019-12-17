@@ -129,7 +129,6 @@ def main():
         outpath = path.joinpath(Path('out'))
     else:
         outpath = Path(outpath)
-    print(str(path.joinpath(Path('geckodriver/geckodriver'))))
     driver = webdriver.Firefox(executable_path='geckodriver/geckodriver')
     driver.get('https://animemusicquiz.com')
     driver.find_element_by_id("loginUsername").send_keys(username)
@@ -180,13 +179,7 @@ def save(annId, anime, song, outpath, database):
     return True
 
 
-def execute_command_Windows(command):
-    print(command)
-    print(type(command))
-    os.system("start /wait /MIN cmd /c %s" % command)
-
-
-def execute_command_POSIX(command):
+def execute_command(command):
     subprocess.call(command)
 
 
@@ -249,10 +242,8 @@ def create_file_name_common(animeTitle, songType, songNumber, songTitle, songArt
 
 if os.name == "nt":
     create_file_name = create_file_name_Windows
-    execute_command = execute_command_Windows
 elif os.name == "posix":
     create_file_name = create_file_name_POSIX
-    execute_command = execute_command_POSIX
 
 
 if __name__ == "__main__":
