@@ -33,7 +33,7 @@ class Database:
     def is_downloaded(self, song, source):
         c = self.conn.cursor()
         c.execute("""
-        SELECT url
+        SELECT source
         FROM downloaded
         WHERE source=(?) AND annSongId = (?)
         """, (source, song["annSongId"],))
@@ -124,10 +124,13 @@ def main():
         global ffmpeg
         ffmpeg = data[4][:-1]
         outpath = data[5][:-1]
-    path = str(Path(__file__).parent.absolute())
+    path = Path(__file__).parent.absolute()
     if not outpath:
-        outpath = path+"/out/"
-    driver = webdriver.Firefox(executable_path=path+'/geckodriver/geckodriver')
+        outpath = path.joinpath(Path('out'))
+    else:
+        outpath = Path(outpath)
+    print(str(path.joinpath(Path('geckodriver/geckodriver'))))
+    driver = webdriver.Firefox(executable_path='geckodriver/geckodriver')
     driver.get('https://animemusicquiz.com')
     driver.find_element_by_id("loginUsername").send_keys(username)
     driver.find_element_by_id("loginPassword").send_keys(password)
@@ -137,17 +140,20 @@ def main():
     questions = get_question_list(driver)
     driver.execute_script("options.logout();")
     driver.close()
+    database = Database("downloaded.db")
     for question in questions:
         annId = question["annId"]
         name = question["name"]
         songs = question["songs"]
         for song in songs:
-            save(annId, name, song, outpath)
+            save(annId, name, song, outpath, database)
 
 
-def save(annId, anime, song, outpath):
+def save(annId, anime, song, outpath, database):
     source_mp3 = song["examples"].get("mp3", None)
     if not source_mp3:
+        return
+    if database.is_downloaded(song, source_mp3):
         return
     title = song["name"]
     artist = song["artist"]
@@ -170,9 +176,13 @@ def save(annId, anime, song, outpath):
         '"%s"' % create_file_name(anime, type, number, title, artist, annId, annSongId, outpath)
     ]
     execute_command(" ".join(command))
+    database.add_downloaded(song, source_mp3)
+    return True
 
 
 def execute_command_Windows(command):
+    print(command)
+    print(type(command))
     os.system("start /wait /MIN cmd /c %s" % command)
 
 
@@ -185,7 +195,7 @@ def create_file_name_Windows(animeTitle, songType, songNumber, songTitle, songAr
     Creates a windows-compliant filename by removing all bad characters 
     and maintaining the windows path length limit (which by default is 255)
     """
-    allowance -= len(path) # by default, windows is sensitive to long total paths.
+    allowance -= len(str(path)) + 1 # by default, windows is sensitive to long total paths.
     bad_characters = re.compile(r"\\|/|<|>|:|\"|\||\?|\*|&|\^|\$|" + '\0')
     return create_file_name_common(animeTitle, songType, songNumber, songTitle, songArtist, annId, annSongId, path, bad_characters, allowance)
 
@@ -232,9 +242,9 @@ def create_file_name_common(animeTitle, songType, songNumber, songTitle, songArt
             break
     else:
         ret = ret[:-1] # removes last "-"
-    ret = path + ret + "_" + str(annId) + "-" + str(annSongId) + ".mp3"
+    ret = path.joinpath(Path(ret + "_" + str(annId) + "-" + str(annSongId) + ".mp3"))
 
-    return ret
+    return str(ret)
 
 
 if os.name == "nt":
